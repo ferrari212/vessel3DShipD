@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Vessel 3D Ship</title>
+        <!-- <link rel="stylesheet" href="styles.css" /> -->
+        <!-- Link to your CSS file -->
+    </head>
+    <body>
+        <header>
+            <h1>Welcome to Vessel 3D Ship</h1>
+        </header>
+
+        <script type="module">
+            // Imported Vessel3D library automatically
+            import * as Vessel3D from "./vessel3D.min.js";
+            import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.mjs";
+            import { createHullMeshFromPoints } from "./integrationFunctions.js";
+
+            // Create a viewer element
+            // Load Pyodide
+            let pyodide = await loadPyodide();
+
+            // Preload common packages like numpy
+            await pyodide.loadPackage("numpy");
+
+            const pyScript = await fetch("/HullParameterization.py").then((r) =>
+                r.text()
+            );
+            pyodide.FS.writeFile("HullParameterization.py", pyScript);
+
+            // Import it like a module
+            await pyodide.runPythonAsync(`
+
+                import numpy as np
+                from HullParameterization import Hull_Parameterization as HP
+                # hull = HP([10,0.586419966,0.4,0.135031115,0.07663603,0.999810586,0.20580107,0.117658103,0.508608374,0.492447476,0.322423635,0.26,-0.8,0.1,0.523887622,-2.837267205,1.921090782,0.285951283,0.08804821,7.546176487,0,1,0,0.26,0.1,0,0,6.67026212,0.12262681,0.397121624,0.478015223,0,0,0.043140284,0.997551418,0.007784437,-0.984684081,0.166829894,0.323335968,0.004969256,1,0.572664826,0.118062528,-0.314184302,0.067689113])
+                hull = HP([10,0.27620347,0.701129511,0.364274502,0.152,0.855335067,0.362,0.321040683,30.77574306,0.528167801,0.4,0.42,-1.2,0.222,0.834972148,-0.396326238,0.67858213,2.762214927,-2.520589888,50.40960951,1,1,0.08,0.411,0.000239714,-1.179676139,1.898174667,10,0.24,0.03449072,0.487780882,0,1,0.004266539,0.873909598,0.494694688,0.120094735,0.279958845,0.6,0.003,0.999,0.992943884,0.1,0,0.293333382])
+
+                # Append the Midbody points in the hull
+                points = []
+                # for i in np.linspace(0, hull.Dd): points.append(hull.halfBeam_MidBody(i))
+
+                points = hull.gen_MeshGridPointCloud(bit_GridOrList = 1)
+
+            `);
+
+            // Get the result into JS
+            const points = pyodide.globals.get("points");
+            const test = points.toJs();
+            console.log(test); // Now you can use it in Vessel3D
+
+            const ship = new Vessel3D.Ship();
+            const scene = new Vessel3D.Scene();
+
+            ship.addHull();
+
+            const pointsMesh = createHullMeshFromPoints(test);
+
+            // Make a copy for the other side of the hull
+            const pointsMesh2 = pointsMesh.clone();
+            pointsMesh2.scale.y = -1; // Mirror the mesh along the x-axis
+
+            // scene.addShip(ship);
+            scene.addToScene(pointsMesh);
+            scene.addToScene(pointsMesh2);
+            scene.addAxesHelper();
+
+            const hydrostatics = new Vessel3D.HullHydrostatics(
+                ship.hull,
+                3,
+                false
+            );
+            const stability = new Vessel3D.HullStability(ship);
+
+            // Verify stability calculations
+            // const {heel, trim} = stability.calculateStaticalStability();
+            // console.log("LCG: ", stability.LCG);
+            // console.log("KG: ", stability.KG);
+            // console.log("GM: ", stability.GM);
+            // console.log("Heel angle: ", heel);
+            // console.log("Trim angle: ", trim);
+
+            // const controller = new Vessel3D.Controller(scene, ship, stability);
+            // controller.trackCenters();
+
+            //---- Function to track position (Not necessary for ordinary use) ---- //
+            scene.camera.position.set(30, 10, 10);
+            scene.camera.lookAt(0, 0, 0);
+            //---- End of function ---->
+
+            function animate() {
+                requestAnimationFrame(animate);
+                scene.renderer.render(scene, scene.camera);
+            }
+
+            animate();
+
+            // viewer.appendChild(scene.renderer.domElement);
+            scene.renderer.setSize(800, 500);
+        </script>
+
+        <footer>
+            <p>&copy; 2025 Vessel 3D Ship</p>
+        </footer>
+
+        <!-- Your JavaScript module -->
+    </body>
+</html>
