@@ -8,6 +8,9 @@
     <body>
         <header>
             <h1>Welcome to Vessel 3D Ship</h1>
+            <div id="stability-values" style="font-family: sans-serif">
+                <h1>Welcome to Vessel 3D Ship - Loading...</h1>
+            </div>
         </header>
 
         <script type="module">
@@ -77,11 +80,20 @@
 
             // Verify stability calculations
             const { heel, trim } = stability.calculateStaticalStability();
-            console.log("LCG: ", stability.LCG);
-            console.log("KG: ", stability.KG);
-            console.log("GM: ", stability.GM);
-            console.log("Heel angle: ", heel);
-            console.log("Trim angle: ", trim);
+
+            // Update the stability values div
+            const stabilityDiv = document.getElementById("stability-values");
+
+            let text = "<h2>Hydrostatics Results</h2>";
+            for (const key in hydrostatics) {
+                if (key === "hull") continue; // Skip the hull object
+
+                text += `<li><strong>${key}:</strong> ${hydrostatics[
+                    key
+                ].toFixed(3)}</li>`;
+            }
+
+            stabilityDiv.innerHTML = text;
 
             // const controller = new Vessel3D.Controller(scene, ship, stability);
             // controller.trackCenters();
@@ -99,11 +111,14 @@
             animate();
 
             // viewer.appendChild(scene.renderer.domElement);
-            scene.renderer.setSize(800, 500);
+            scene.renderer.setSize(400, 200);
         </script>
 
         <footer>
-            <p>&copy; 2025 Vessel 3D Ship</p>
+            <p>
+                ShipD, Vessel 3D visualizer and hydrostatics calculations -
+                Author: Felipe Ferrari
+            </p>
         </footer>
     </body>
 </html>
