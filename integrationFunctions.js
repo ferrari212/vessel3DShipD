@@ -159,8 +159,8 @@ function returnHullVessel3DFormation(waterlines) {
     const extremePoints = lastWaterLine[numberOfFramePoints - 1];
 
     const shipLength = extremePoints[0]; // index 0 is the bow x coordinate
-    const shipBeam = Math.max(...extremePoints.map((point) => point[1]));
-    const shipDraft = extremePoints[2]; // index 2 is the draft
+    const shipBeam = Math.max(...lastWaterLine.map((point) => point[1]));
+    const shipDepth = extremePoints[2]; // index 2 is the draft
 
     const hull = {};
     hull.halfBreadths = {
@@ -174,37 +174,54 @@ function returnHullVessel3DFormation(waterlines) {
     hull.halfBreadths.stations = lastWaterLine.map(
         (point) => point[0] / shipLength
     ); // normalized x-coordinates
-    hull.halfBreadths.waterlines = waterlines.map((wl) => wl[0][2] / shipDraft); // normalized z-coordinates
-    debugger;
+    hull.halfBreadths.waterlines = waterlines.map((wl) => wl[0][2] / shipDepth); // normalized z-coordinates
 
     for (let i = 0; i < numberWaterLines; i++) {
-        const waterline = waterlines[i].map((point) => point / shipBeam); // Normalize y-coordinates
+        const [waterlineStation, waterlinesBreadth] = waterlines[i].reduce(
+            (acc, point) => {
+                acc[0].push(point[0] / shipLength); // x-coordinates (lengths)
+                acc[1].push(point[1] / shipBeam); // y-coordinates (breadths)
+                return acc;
+            },
+            [[], []]
+        );
+
+        // const waterline = waterlines[i].map((point) => point / shipBeam); // Normalize y-coordinates
         hull.halfBreadths.table.push([]); // Initialize an empty array for this waterline
 
         for (let j = 0; j < hull.halfBreadths.stations.length; j++) {
             // Check if the breadth if the first breadth is smaller than the first breadth
             // in the waterline, if so, add null to the table.
-            if (hull.halfBreadths.stations[j] < waterline[0][0]) {
+            if (hull.halfBreadths.stations[j] < waterlineStation[0]) {
                 hull.halfBreadths.table[i].push(null);
                 continue;
             }
 
             if (
                 hull.halfBreadths.stations[j] >
-                waterline[waterline.length - 1][0]
+                waterlineStation[waterlineStation.length - 1]
             ) {
                 hull.halfBreadths.table[i].push(null);
                 continue;
             }
 
             // Find the index of the station in the waterline
-            // id = waterline.findIndex(
-            //     (point) => point[0] === hull.halfBreadths.stations[j]
-            // );
-            // hull.halfBreadths.table[i].push()
+            const id = waterlineStation.findIndex(
+                (point) => point === hull.halfBreadths.stations[j]
+            );
+            hull.halfBreadths.table[i].push(waterlinesBreadth[id]); // Add the breadth at this station
         }
     }
 
+    // Setting up to hull attributes
+    hull.attributes = {
+        LOA: shipLength,
+        BOA: shipBeam,
+        Depth: shipDepth,
+        structureWeight: 2000, //kg
+    };
+
+    hull.style = {};
     return hull;
 }
 

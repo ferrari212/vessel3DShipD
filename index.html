@@ -4,8 +4,6 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Vessel 3D Ship</title>
-        <!-- <link rel="stylesheet" href="styles.css" /> -->
-        <!-- Link to your CSS file -->
     </head>
     <body>
         <header>
@@ -16,7 +14,10 @@
             // Imported Vessel3D library automatically
             import * as Vessel3D from "./vessel3D.min.js";
             import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.mjs";
-            import { createHullMeshFromPoints } from "./integrationFunctions.js";
+            import {
+                createHullMeshFromPoints,
+                returnHullVessel3DFormation,
+            } from "./integrationFunctions.js";
 
             // Create a viewer element
             // Load Pyodide
@@ -54,9 +55,10 @@
             const ship = new Vessel3D.Ship();
             const scene = new Vessel3D.Scene();
 
-            ship.addHull();
-
             const pointsMesh = createHullMeshFromPoints(test);
+            const hullFormation = returnHullVessel3DFormation(test);
+
+            ship.addHull(hullFormation);
 
             // Make a copy for the other side of the hull
             const pointsMesh2 = pointsMesh.clone();
@@ -68,25 +70,24 @@
             scene.addAxesHelper();
 
             const hydrostatics = new Vessel3D.HullHydrostatics(
-                ship.hull,
-                3,
-                false
+                hullFormation,
+                1.0 // draft in meters
             );
             const stability = new Vessel3D.HullStability(ship);
 
             // Verify stability calculations
-            // const {heel, trim} = stability.calculateStaticalStability();
-            // console.log("LCG: ", stability.LCG);
-            // console.log("KG: ", stability.KG);
-            // console.log("GM: ", stability.GM);
-            // console.log("Heel angle: ", heel);
-            // console.log("Trim angle: ", trim);
+            const { heel, trim } = stability.calculateStaticalStability();
+            console.log("LCG: ", stability.LCG);
+            console.log("KG: ", stability.KG);
+            console.log("GM: ", stability.GM);
+            console.log("Heel angle: ", heel);
+            console.log("Trim angle: ", trim);
 
             // const controller = new Vessel3D.Controller(scene, ship, stability);
             // controller.trackCenters();
 
             //---- Function to track position (Not necessary for ordinary use) ---- //
-            scene.camera.position.set(30, 10, 10);
+            scene.camera.position.set(10, 5, 5);
             scene.camera.lookAt(0, 0, 0);
             //---- End of function ---->
 
@@ -104,7 +105,5 @@
         <footer>
             <p>&copy; 2025 Vessel 3D Ship</p>
         </footer>
-
-        <!-- Your JavaScript module -->
     </body>
 </html>
