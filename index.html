@@ -29,9 +29,9 @@
             // Preload common packages like numpy
             await pyodide.loadPackage("numpy");
 
-            const pyScript = await fetch("/HullParameterization.py").then((r) =>
-                r.text()
-            );
+            const pyScript = await fetch(
+                "https://raw.githubusercontent.com/ferrari212/vessel3DShipD/refs/heads/main/HullParameterization.py"
+            ).then((r) => r.text());
             pyodide.FS.writeFile("HullParameterization.py", pyScript);
 
             // Import it like a module
