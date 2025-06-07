@@ -7,14 +7,16 @@
     </head>
     <body>
         <header>
-            <h1>Welcome to Vessel 3D Ship</h1>
             <div id="stability-values" style="font-family: sans-serif">
-                <h1>Welcome to Vessel 3D Ship - Loading...</h1>
+                <h1>Welcome to Vessel 3D Ship</h1>
+            </div>
+            <div>
+                <button id="hull1-btn">Hull 1</button>
+                <button id="hull2-btn">Hull 2</button>
             </div>
         </header>
 
         <script type="module">
-            // Imported Vessel3D library automatically
             import * as Vessel3D from "./vessel3D.min.js";
             import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.mjs";
             import {
@@ -22,11 +24,26 @@
                 returnHullVessel3DFormation,
             } from "./integrationFunctions.js";
 
-            // Create a viewer element
-            // Load Pyodide
-            let pyodide = await loadPyodide();
+            const hullParams = [
+                [
+                    10, 0.2762, 0.7011, 0.3642, 0.152, 0.8553, 0.362, 0.321,
+                    30.7757, 0.5281, 0.4, 0.42, -1.2, 0.222, 0.8349, -0.3963,
+                    0.6785, 2.7622, -2.5205, 50.4096, 1, 1, 0.08, 0.411,
+                    0.00024, -1.1797, 1.8982, 10, 0.24, 0.0345, 0.4878, 0, 1,
+                    0.00427, 0.8739, 0.4947, 0.1201, 0.2799, 0.6, 0.003, 0.999,
+                    0.9929, 0.1, 0, 0.2933,
+                ],
+                [
+                    10, 0.5864, 0.4, 0.135, 0.0766, 0.9998, 0.2058, 0.1177,
+                    0.5086, 0.4924, 0.3224, 0.26, -0.8, 0.1, 0.5238, -2.8372,
+                    1.9211, 0.2859, 0.088, 7.5462, 0, 1, 0, 0.26, 0.1, 0, 0,
+                    6.6703, 0.1226, 0.3971, 0.478, 0, 0, 0.0431, 0.9976, 0.0078,
+                    -0.9847, 0.1668, 0.3233, 0.0049, 1, 0.5727, 0.1181, -0.3142,
+                    0.0677,
+                ],
+            ];
 
-            // Preload common packages like numpy
+            let pyodide = await loadPyodide();
             await pyodide.loadPackage("numpy");
 
             const pyScript = await fetch(
@@ -34,74 +51,66 @@
             ).then((r) => r.text());
             pyodide.FS.writeFile("HullParameterization.py", pyScript);
 
-            // Import it like a module
-            await pyodide.runPythonAsync(`
-
-                import numpy as np
-                from HullParameterization import Hull_Parameterization as HP
-                # hull = HP([10,0.586419966,0.4,0.135031115,0.07663603,0.999810586,0.20580107,0.117658103,0.508608374,0.492447476,0.322423635,0.26,-0.8,0.1,0.523887622,-2.837267205,1.921090782,0.285951283,0.08804821,7.546176487,0,1,0,0.26,0.1,0,0,6.67026212,0.12262681,0.397121624,0.478015223,0,0,0.043140284,0.997551418,0.007784437,-0.984684081,0.166829894,0.323335968,0.004969256,1,0.572664826,0.118062528,-0.314184302,0.067689113])
-                hull = HP([10,0.27620347,0.701129511,0.364274502,0.152,0.855335067,0.362,0.321040683,30.77574306,0.528167801,0.4,0.42,-1.2,0.222,0.834972148,-0.396326238,0.67858213,2.762214927,-2.520589888,50.40960951,1,1,0.08,0.411,0.000239714,-1.179676139,1.898174667,10,0.24,0.03449072,0.487780882,0,1,0.004266539,0.873909598,0.494694688,0.120094735,0.279958845,0.6,0.003,0.999,0.992943884,0.1,0,0.293333382])
-
-                # Append the Midbody points in the hull
-                points = []
-                # for i in np.linspace(0, hull.Dd): points.append(hull.halfBeam_MidBody(i))
-
-                points = hull.gen_MeshGridPointCloud(bit_GridOrList = 1)
-
-            `);
-
-            // Get the result into JS
-            const points = pyodide.globals.get("points");
-            const test = points.toJs();
-            console.log(test); // Now you can use it in Vessel3D
-
-            const ship = new Vessel3D.Ship();
             const scene = new Vessel3D.Scene();
+            let currentMesh1, currentMesh2;
 
-            const pointsMesh = createHullMeshFromPoints(test);
-            const hullFormation = returnHullVessel3DFormation(test);
-
-            ship.addHull(hullFormation);
-
-            // Make a copy for the other side of the hull
-            const pointsMesh2 = pointsMesh.clone();
-            pointsMesh2.scale.y = -1; // Mirror the mesh along the x-axis
-
-            // scene.addShip(ship);
-            scene.addToScene(pointsMesh);
-            scene.addToScene(pointsMesh2);
-            scene.addAxesHelper();
-
-            const hydrostatics = new Vessel3D.HullHydrostatics(
-                hullFormation,
-                1.0 // draft in meters
-            );
-            const stability = new Vessel3D.HullStability(ship);
-
-            // Verify stability calculations
-            const { heel, trim } = stability.calculateStaticalStability();
-
-            // Update the stability values div
-            const stabilityDiv = document.getElementById("stability-values");
-
-            let text = "<h2>Hydrostatics Results</h2>";
-            for (const key in hydrostatics) {
-                if (key === "hull") continue; // Skip the hull object
-
-                text += `<li><strong>${key}:</strong> ${hydrostatics[
-                    key
-                ].toFixed(3)}</li>`;
+            function clearOldMeshes() {
+                if (currentMesh1) scene.removeFromScene(currentMesh1);
+                if (currentMesh2) scene.removeFromScene(currentMesh2);
             }
 
-            stabilityDiv.innerHTML = text;
+            async function generateHull(index) {
+                clearOldMeshes();
 
-            // const controller = new Vessel3D.Controller(scene, ship, stability);
-            // controller.trackCenters();
+                const params = hullParams[index];
 
-            //---- Function to track position (Not necessary for ordinary use) ---- //
+                await pyodide.runPythonAsync(`
+                import numpy as np
+                from HullParameterization import Hull_Parameterization as HP
+                hull = HP(${JSON.stringify(params)})
+                points = hull.gen_MeshGridPointCloud(bit_GridOrList=1)
+            `);
+
+                const points = pyodide.globals.get("points").toJs();
+                const ship = new Vessel3D.Ship();
+                const pointsMesh = createHullMeshFromPoints(points);
+                const mirrored = pointsMesh.clone();
+                mirrored.scale.y = -1;
+
+                const hullFormation = returnHullVessel3DFormation(points);
+                ship.addHull(hullFormation);
+
+                // choose the draft as half of the calculated depth of the index
+                const draft = params[0] * params[4] * 0.5;
+
+                const hydrostatics = new Vessel3D.HullHydrostatics(
+                    hullFormation,
+                    draft // draft in meters
+                );
+                const stability = new Vessel3D.HullStability(ship);
+
+                // Verify stability calculations
+                const { heel, trim } = stability.calculateStaticalStability();
+
+                let text = "<h2>Hydrostatics Results</h2>";
+                for (const key in hydrostatics) {
+                    if (key === "hull") continue;
+                    text += `<li><strong>${key}:</strong> ${hydrostatics[
+                        key
+                    ].toFixed(3)}</li>`;
+                }
+
+                document.getElementById("stability-values").innerHTML = text;
+
+                scene.addToScene(pointsMesh);
+                scene.addToScene(mirrored);
+                currentMesh1 = pointsMesh;
+                currentMesh2 = mirrored;
+            }
+
             scene.camera.position.set(10, 5, 5);
             scene.camera.lookAt(0, 0, 0);
-            //---- End of function ---->
+            scene.addAxesHelper();
 
             function animate() {
                 requestAnimationFrame(animate);
@@ -109,9 +118,25 @@
             }
 
             animate();
+            scene.renderer.setSize(
+                window.innerWidth * 0.4,
+                window.innerHeight * 0.4
+            );
+            document.body.appendChild(scene.renderer.domElement);
 
-            // viewer.appendChild(scene.renderer.domElement);
-            scene.renderer.setSize(400, 200);
+            // Initial hull
+            generateHull(0);
+
+            document
+                .getElementById("hull1-btn")
+                .addEventListener("click", () => {
+                    generateHull(0);
+                });
+            document
+                .getElementById("hull2-btn")
+                .addEventListener("click", () => {
+                    generateHull(1);
+                });
         </script>
 
         <footer>
