@@ -4,17 +4,75 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Vessel 3D Ship</title>
+        <style>
+            body {
+                margin: 1rem;
+                padding: 0;
+                font-family: sans-serif;
+            }
+            .main-container {
+                display: flex;
+                flex-direction: row;
+                align-items: flex-start;
+                min-height: 80vh;
+                gap: 1rem;
+                padding: 1rem;
+            }
+            .right-panel {
+                min-width: 400px;
+                max-width: 500px;
+            }
+            .scene-container {
+                flex: 1;
+                display: flex;
+                justify-content: left;
+                align-items: flex-start;
+            }
+            #stability-values {
+                margin-bottom: 2rem;
+            }
+            button {
+                margin-right: 0.5rem;
+                margin-bottom: 0.5rem;
+                padding: 0.5rem 1rem;
+                font-size: 1rem;
+            }
+        </style>
     </head>
     <body>
-        <header>
-            <div id="stability-values" style="font-family: sans-serif">
-                <h1>Welcome to Vessel 3D Ship</h1>
+        <h1>ShipD, Vessel 3D visualizer and hydrostatics calculations</h1>
+        <p>
+            Author: Felipe Ferrari - Visualization created with
+            <a href="https://github.com/ferrari212/vessel3DShipD"
+                >vessel3DShipD</a
+            >
+            and hull parameterization using
+            <a href="https://github.com/noahbagz/ShipD">ShipD</a>
+        </p>
+        <div class="main-container">
+            <div class="scene-container" id="scene-container"></div>
+            <div class="right-panel">
+                <div id="stability-values">
+                    <h2>Loading Results...</h2>
+                </div>
+                <div id="buttons-container">
+                    <button id="hull1-btn">
+                        Container Vessel (Bulbous Bow)
+                    </button>
+                    <button id="hull2-btn">Frigate (Stealth)</button>
+                    <button id="hull3-btn">Hight Speed Yacht</button>
+                    <button id="hull4-btn">Boat</button>
+                    <button id="hull5-btn">Hight Speed Vessel</button>
+                    <button id="hull6-btn">Bulbous Cruiser</button>
+                    <button id="hull7-btn">Hight Speed Sailor Vessel</button>
+                    <button id="hull8-btn">Tug Boat</button>
+                    <button id="hull9-btn">Classic</button>
+                    <button id="hull10-btn">Frigate</button>
+                    <button id="hull11-btn">Wigley Hull</button>
+                    <button id="hull12-btn">General Cargo</button>
+                </div>
             </div>
-            <div>
-                <button id="hull1-btn">Hull 1</button>
-                <button id="hull2-btn">Hull 2</button>
-            </div>
-        </header>
+        </div>
 
         <script type="module">
             import * as Vessel3D from "./vessel3D.min.js";
@@ -23,25 +81,7 @@
                 createHullMeshFromPoints,
                 returnHullVessel3DFormation,
             } from "./integrationFunctions.js";
-
-            const hullParams = [
-                [
-                    10, 0.2762, 0.7011, 0.3642, 0.152, 0.8553, 0.362, 0.321,
-                    30.7757, 0.5281, 0.4, 0.42, -1.2, 0.222, 0.8349, -0.3963,
-                    0.6785, 2.7622, -2.5205, 50.4096, 1, 1, 0.08, 0.411,
-                    0.00024, -1.1797, 1.8982, 10, 0.24, 0.0345, 0.4878, 0, 1,
-                    0.00427, 0.8739, 0.4947, 0.1201, 0.2799, 0.6, 0.003, 0.999,
-                    0.9929, 0.1, 0, 0.2933,
-                ],
-                [
-                    10, 0.5864, 0.4, 0.135, 0.0766, 0.9998, 0.2058, 0.1177,
-                    0.5086, 0.4924, 0.3224, 0.26, -0.8, 0.1, 0.5238, -2.8372,
-                    1.9211, 0.2859, 0.088, 7.5462, 0, 1, 0, 0.26, 0.1, 0, 0,
-                    6.6703, 0.1226, 0.3971, 0.478, 0, 0, 0.0431, 0.9976, 0.0078,
-                    -0.9847, 0.1668, 0.3233, 0.0049, 1, 0.5727, 0.1181, -0.3142,
-                    0.0677,
-                ],
-            ];
+            import hullParams from "./paramsForHull.js";
 
             let pyodide = await loadPyodide();
             await pyodide.loadPackage("numpy");
@@ -65,11 +105,11 @@
                 const params = hullParams[index];
 
                 await pyodide.runPythonAsync(`
-                import numpy as np
-                from HullParameterization import Hull_Parameterization as HP
-                hull = HP(${JSON.stringify(params)})
-                points = hull.gen_MeshGridPointCloud(bit_GridOrList=1)
-            `);
+                                        import numpy as np
+                                        from HullParameterization import Hull_Parameterization as HP
+                                        hull = HP(${JSON.stringify(params)})
+                                        points = hull.gen_MeshGridPointCloud(bit_GridOrList=1)
+                                    `);
 
                 const points = pyodide.globals.get("points").toJs();
                 const ship = new Vessel3D.Ship();
@@ -93,8 +133,14 @@
                 const { heel, trim } = stability.calculateStaticalStability();
 
                 let text = "<h2>Hydrostatics Results</h2>";
+                text += `<li><strong>LOA: 10 m (default)</strong></li>`;
                 for (const key in hydrostatics) {
                     if (key === "hull") continue;
+
+                    if (isNaN(hydrostatics[key])) {
+                        text += `<li style="color:red;"><strong>${key}:</strong> Not calculated (Vessel3D.js does not support hydrostatics for inverted bow and reversed transom)</li>`;
+                        break;
+                    }
                     text += `<li><strong>${key}:</strong> ${hydrostatics[
                         key
                     ].toFixed(3)}</li>`;
@@ -119,31 +165,25 @@
 
             animate();
             scene.renderer.setSize(
-                window.innerWidth * 0.4,
-                window.innerHeight * 0.4
+                window.innerWidth * 0.6,
+                window.innerHeight * 0.7
             );
-            document.body.appendChild(scene.renderer.domElement);
+            // Append the renderer to the scene-container div
+            document
+                .getElementById("scene-container")
+                .appendChild(scene.renderer.domElement);
 
             // Initial hull
             generateHull(0);
 
-            document
-                .getElementById("hull1-btn")
-                .addEventListener("click", () => {
-                    generateHull(0);
+            // Add event listeners to all hull buttons dynamically
+            const buttonContainer =
+                document.getElementById("buttons-container");
+            Array.from(buttonContainer.children).forEach((btn, idx) => {
+                btn.addEventListener("click", () => {
+                    generateHull(idx);
                 });
-            document
-                .getElementById("hull2-btn")
-                .addEventListener("click", () => {
-                    generateHull(1);
-                });
+            });
         </script>
-
-        <footer>
-            <p>
-                ShipD, Vessel 3D visualizer and hydrostatics calculations -
-                Author: Felipe Ferrari
-            </p>
-        </footer>
     </body>
 </html>
